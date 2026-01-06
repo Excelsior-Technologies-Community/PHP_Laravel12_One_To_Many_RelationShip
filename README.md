@@ -1,59 +1,210 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# PHP_Laravel12_One_To_Many_RelationShip
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+# Step 1: Install Laravel 12 and Create project
+```php
+Composer create-project laravel/laravel your folder name “^12.0”
+```
+# Step 2 : Setup Database for.env file
+```php
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=your database name
+DB_USERNAME=root
+DB_PASSWORD=
+```
+# Step 3: Create posts table for migration file
+```php
+php artisan make:migration create_posts_table
+```
+```php
+<?php
+  
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+  
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('posts', function (Blueprint $table) {
+            $table->id();
+            $table->string("name");
+            $table->timestamps();
+        });
+    }
+  
+    public function down(): void
+    {
+        Schema::dropIfExists('posts');
+    }
+};
+```
+# Step 4: Create comments table for migration file
+```php
+php artisan make:migration create_comments_table
+```
+```php
+<?php
+  
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+  
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('comments', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('post_id')->constrained('posts');
+            $table->string("comment");
+            $table->timestamps();
+        });
+    }
+  
+    public function down(): void
+    {
+        Schema::dropIfExists('comments');
+    }
+};
+```
+# Step 5 : Run Migration
+```php
+php artisan migrate
+```
 
-## About Laravel
+# Step 6: Models Create 
+```php
+php artisan make:model Post
+php artisan make:model Comment
+```
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+# Post Model
+```php
+ app/Models/Post.php
+```
+```php
+<?php
+  
+namespace App\Models;
+  
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+  
+class Post extends Model
+{
+    use HasFactory;
+ 
+    public function comments(): HasMany
+    {
+        return $this->hasMany(Comment::class);
+    }
+}
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+```
+# Comment Model
+```php
+ app/Models/Comment.php
+```
+```php
+<?php
+  
+namespace App\Models;
+  
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+  
+class Comment extends Model
+{
+    use HasFactory;
+  
+    public function post(): BelongsTo
+    {
+        return $this->belongsTo(Post::class);
+    }
+}
+```
+# Step 7: Create PostController
+```php
+<?php
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+namespace App\Http\Controllers;
 
-## Learning Laravel
+use Illuminate\Http\Request;
+use App\Models\Post;
+use App\Models\Comment;
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+class PostController extends Controller
+{
+    public function index()
+    {
+        //  Post ID 1 fetch karo
+        $post = Post::find(1);
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+        //  Safety check (important)
+        if (!$post) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Post not found. Please insert post first.'
+            ]);
+        }
 
-## Laravel Sponsors
+        //  Comment 1
+        $comment1 = new Comment();
+        $comment1->comment = "Hi Comment 1";
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+        //  Comment 2
+        $comment2 = new Comment();
+        $comment2->comment = "Hi Comment 2";
 
-### Premium Partners
+        //  Save multiple comments
+        $post->comments()->saveMany([$comment1, $comment2]);
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+        return response()->json([
+            'status' => true,
+            'message' => 'Comments saved successfully',
+            'post_id' => $post->id
+        ]);
+    }
+}
+```
+# Step 8: Create web route for routes/web.php file
+```php
+<?php
 
-## Contributing
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PostController;
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Route::get('/test', [PostController::class, 'index']);
 
-## Code of Conduct
+Route::get('/', function () {
+    return view('welcome');
+});
+```
+ # Step 9:Now Run Server and paste this url
+ ```php
+php artisan serve
+```
+```php
+http://127.0.0.1:8000/test
+```
+ <img width="1349" height="214" alt="image" src="https://github.com/user-attachments/assets/13ccbd73-d338-4c5a-a1bd-b4e65fc74130" />
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# Now Open your comments and posts table for database
+ 
+ <img width="1203" height="394" alt="image" src="https://github.com/user-attachments/assets/f11dd4a9-2488-4987-92dc-bf7f7911c8f2" />
+<img width="1363" height="587" alt="image" src="https://github.com/user-attachments/assets/e4d1fbed-7ed8-4241-abb7-70408b7a3e2a" />
 
-## Security Vulnerabilities
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
-## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+ 
+
+
+
+
+
