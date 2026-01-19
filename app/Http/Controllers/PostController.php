@@ -10,10 +10,10 @@ class PostController extends Controller
 {
     public function index()
     {
-        // 🔹 Post ID 1 fetch karo
+        //  Post ID 1 fetch karo
         $post = Post::find(1);
 
-        // 🔴 Safety check (important)
+        //  Safety check (important)
         if (!$post) {
             return response()->json([
                 'status' => false,
