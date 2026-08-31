@@ -12,25 +12,60 @@ class Comment extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['comment', 'post_id', 'user_id', 'parent_id'];
+    protected $fillable = [
+        'comment',
+        'post_id',
+        'user_id',
+        'parent_id',
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Comment -> Post
+    |--------------------------------------------------------------------------
+    */
 
     public function post(): BelongsTo
     {
         return $this->belongsTo(Post::class);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Comment -> User
+    |--------------------------------------------------------------------------
+    */
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Comment -> Parent Comment
+    |--------------------------------------------------------------------------
+    */
+
     public function parent(): BelongsTo
     {
-        return $this->belongsTo(Comment::class, 'parent_id');
+        return $this->belongsTo(
+            Comment::class,
+            'parent_id'
+        );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Comment -> Replies
+    |--------------------------------------------------------------------------
+    */
 
     public function replies(): HasMany
     {
-        return $this->hasMany(Comment::class, 'parent_id');
+        return $this->hasMany(
+            Comment::class,
+            'parent_id'
+        );
     }
 }
