@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Builder;
 
 class Post extends Model
 {
@@ -18,15 +18,12 @@ class Post extends Model
         'body',
         'image',
         'user_id',
-    ];
-
-    protected $casts = [
-        'created_at' => 'datetime',
+        'status',
     ];
 
     /*
     |--------------------------------------------------------------------------
-    | User Relationship
+    | User
     |--------------------------------------------------------------------------
     */
 
@@ -37,7 +34,7 @@ class Post extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | One-to-Many: Post -> Comments
+    | Comments
     |--------------------------------------------------------------------------
     */
 
@@ -48,11 +45,8 @@ class Post extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | One-to-Many: Post -> Top-Level Comments
+    | Top Level Comments
     |--------------------------------------------------------------------------
-    |
-    | Only comments which are not replies.
-    |
     */
 
     public function topLevelComments(): HasMany
@@ -63,7 +57,7 @@ class Post extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | One-to-Many: Post -> Likes
+    | Likes
     |--------------------------------------------------------------------------
     */
 
@@ -74,26 +68,39 @@ class Post extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | Search Scope
+    | Bookmarks
+    |--------------------------------------------------------------------------
+    */
+
+    public function bookmarks(): HasMany
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Views
+    |--------------------------------------------------------------------------
+    */
+
+    public function views(): HasMany
+    {
+        return $this->hasMany(PostView::class);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Search
     |--------------------------------------------------------------------------
     */
 
     public function scopeSearch(
         Builder $query,
-        ?string $search
+        string $search
     ): Builder {
-        return $query->when($search, function ($q, $search) {
-            $q->where(function ($q) use ($search) {
-                $q->where(
-                    'name',
-                    'like',
-                    "%{$search}%"
-                )->orWhere(
-                    'body',
-                    'like',
-                    "%{$search}%"
-                );
-            });
+        return $query->where(function ($query) use ($search) {
+            $query->where('name', 'like', "%{$search}%")
+                ->orWhere('body', 'like', "%{$search}%");
         });
     }
 
@@ -105,28 +112,26 @@ class Post extends Model
 
     public function scopeFilterByDate(
         Builder $query,
-        ?string $from,
-        ?string $to
+        $from,
+        $to = null
     ): Builder {
-        return $query
-            ->when(
-                $from,
-                fn ($q, $from) =>
-                    $q->whereDate(
-                        'created_at',
-                        '>=',
-                        $from
-                    )
-            )
-            ->when(
-                $to,
-                fn ($q, $to) =>
-                    $q->whereDate(
-                        'created_at',
-                        '<=',
-                        $to
-                    )
+        if ($from) {
+            $query->whereDate(
+                'created_at',
+                '>=',
+                $from
             );
+        }
+
+        if ($to) {
+            $query->whereDate(
+                'created_at',
+                '<=',
+                $to
+            );
+        }
+
+        return $query;
     }
 
     /*
@@ -137,15 +142,26 @@ class Post extends Model
 
     public function scopeFilterByUser(
         Builder $query,
-        ?int $userId
+        $userId
     ): Builder {
-        return $query->when(
-            $userId,
-            fn ($q, $userId) =>
-                $q->where(
-                    'user_id',
-                    $userId
-                )
+        return $query->where(
+            'user_id',
+            $userId
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Published Scope
+    |--------------------------------------------------------------------------
+    */
+
+    public function scopePublished(
+        Builder $query
+    ): Builder {
+        return $query->where(
+            'status',
+            'published'
         );
     }
 }
