@@ -1,15 +1,26 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\LikeController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BookmarkController;
+use App\Http\Controllers\CommentLikeController;
+use App\Http\Controllers\PostViewController;
 
 
 /*
 |--------------------------------------------------------------------------
 | Public Routes
+|--------------------------------------------------------------------------
+*/
+
+
+/*
+|--------------------------------------------------------------------------
+| Home / Posts
 |--------------------------------------------------------------------------
 */
 
@@ -25,25 +36,60 @@ Route::get(
 |--------------------------------------------------------------------------
 */
 
+
+/*
+|--------------------------------------------------------------------------
+| Login Page
+|--------------------------------------------------------------------------
+*/
+
 Route::get(
     'login',
     [AuthController::class, 'showLogin']
 )->name('login');
+
+
+/*
+|--------------------------------------------------------------------------
+| Login Submit
+|--------------------------------------------------------------------------
+*/
+
+Route::post(
+    'login',
+    [AuthController::class, 'login']
+)->name('login.store');
+
+
+/*
+|--------------------------------------------------------------------------
+| Register Page
+|--------------------------------------------------------------------------
+*/
 
 Route::get(
     'register',
     [AuthController::class, 'showRegister']
 )->name('register');
 
+
+/*
+|--------------------------------------------------------------------------
+| Register Submit
+|--------------------------------------------------------------------------
+*/
+
 Route::post(
     'register',
     [AuthController::class, 'register']
 )->name('register.store');
 
-Route::post(
-    'login',
-    [AuthController::class, 'login']
-)->name('login.store');
+
+/*
+|--------------------------------------------------------------------------
+| Logout
+|--------------------------------------------------------------------------
+*/
 
 Route::post(
     'logout',
@@ -61,7 +107,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Posts
+    | Create Post
     |--------------------------------------------------------------------------
     */
 
@@ -70,20 +116,100 @@ Route::middleware('auth')->group(function () {
         [PostController::class, 'create']
     )->name('posts.create');
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Store Post
+    |--------------------------------------------------------------------------
+    */
+
     Route::post(
         'posts',
         [PostController::class, 'store']
     )->name('posts.store');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CSV Export
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANT:
+    | This must come BEFORE posts/{post}.
+    |
+    */
+
+    Route::get(
+        'posts/export',
+        [PostController::class, 'export']
+    )->name('posts.export');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Post Like
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post(
+        'posts/{post}/like',
+        [LikeController::class, 'toggle']
+    )->name('posts.like');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Post Bookmark
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post(
+        'posts/{post}/bookmark',
+        [BookmarkController::class, 'toggle']
+    )->name('posts.bookmark');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Post View
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post(
+        'posts/{post}/view',
+        [PostViewController::class, 'store']
+    )->name('posts.view');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Edit Post
+    |--------------------------------------------------------------------------
+    */
 
     Route::get(
         'posts/{post}/edit',
         [PostController::class, 'edit']
     )->name('posts.edit');
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update Post
+    |--------------------------------------------------------------------------
+    */
+
     Route::put(
         'posts/{post}',
         [PostController::class, 'update']
     )->name('posts.update');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Delete Post
+    |--------------------------------------------------------------------------
+    */
 
     Route::delete(
         'posts/{post}',
@@ -93,7 +219,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Comments
+    | Store Comment / Reply
     |--------------------------------------------------------------------------
     */
 
@@ -102,10 +228,24 @@ Route::middleware('auth')->group(function () {
         [CommentController::class, 'store']
     )->name('comments.store');
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update Comment
+    |--------------------------------------------------------------------------
+    */
+
     Route::put(
         'comments/{comment}',
         [CommentController::class, 'update']
     )->name('comments.update');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Delete Comment
+    |--------------------------------------------------------------------------
+    */
 
     Route::delete(
         'comments/{comment}',
@@ -115,14 +255,14 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Likes
+    | Comment Like
     |--------------------------------------------------------------------------
     */
 
     Route::post(
-        'posts/{post}/like',
-        [LikeController::class, 'toggle']
-    )->name('posts.like');
+        'comments/{comment}/like',
+        [CommentLikeController::class, 'toggle']
+    )->name('comments.like');
 });
 
 
@@ -130,6 +270,14 @@ Route::middleware('auth')->group(function () {
 |--------------------------------------------------------------------------
 | Post Details
 |--------------------------------------------------------------------------
+|
+| IMPORTANT:
+| This wildcard route is LAST.
+|
+| Otherwise /posts/export could be treated as:
+|
+| /posts/{post}
+|
 */
 
 Route::get(

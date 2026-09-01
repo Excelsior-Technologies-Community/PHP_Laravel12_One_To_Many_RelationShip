@@ -3,34 +3,149 @@
 @section('title', 'Edit Post')
 
 @section('content')
-<h1>Edit Post</h1>
 
-<form action="{{ route('posts.update', $post) }}" method="POST" enctype="multipart/form-data">
-    @csrf
-    @method('PUT')
+<div class="row justify-content-center">
 
-    <div class="mb-3">
-        <label for="name" class="form-label">Title</label>
-        <input type="text" name="name" id="name" class="form-control" value="{{ old('name', $post->name) }}" required maxlength="255">
-    </div>
+    <div class="col-md-8">
 
-    <div class="mb-3">
-        <label for="body" class="form-label">Body</label>
-        <textarea name="body" id="body" class="form-control" rows="6" required minlength="10" maxlength="5000">{{ old('body', $post->body) }}</textarea>
-    </div>
+        <div class="card">
 
-    <div class="mb-3">
-        <label for="image" class="form-label">Image</label>
-        <input type="file" name="image" id="image" class="form-control" accept="image/*">
-        @if($post->image)
-            <div class="mt-2">
-                <img src="{{ asset('storage/' . $post->image) }}" alt="Current image" style="max-height: 200px;">
+            <div class="card-header">
+                <h4 class="mb-0">Edit Post</h4>
             </div>
-        @endif
-        <div class="form-text">Leave blank to keep current image. Max 2MB. JPG, PNG, WebP only.</div>
+
+            <div class="card-body">
+
+                <form
+                    method="POST"
+                    action="{{ route('posts.update', $post) }}"
+                    enctype="multipart/form-data"
+                >
+
+                    @csrf
+                    @method('PUT')
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Post Name
+                        </label>
+
+                        <input
+                            type="text"
+                            name="name"
+                            class="form-control"
+                            value="{{ old('name', $post->name) }}"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Body
+                        </label>
+
+                        <textarea
+                            name="body"
+                            class="form-control"
+                            rows="7"
+                            required
+                        >{{ old('body', $post->body) }}</textarea>
+
+                    </div>
+
+
+                    @if($post->image)
+
+                        <div class="mb-3">
+
+                            <p>Current Image:</p>
+
+                            <img
+                                src="{{ asset('storage/' . $post->image) }}"
+                                class="img-thumbnail"
+                                style="max-width:200px"
+                            >
+
+                        </div>
+
+                    @endif
+
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Replace Image
+                        </label>
+
+                        <input
+                            type="file"
+                            name="image"
+                            class="form-control"
+                        >
+
+                    </div>
+
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Status
+                        </label>
+
+                        <select
+                            name="status"
+                            class="form-select"
+                        >
+
+                            <option
+                                value="published"
+                                {{ old('status', $post->status) === 'published' ? 'selected' : '' }}
+                            >
+                                Published
+                            </option>
+
+                            <option
+                                value="draft"
+                                {{ old('status', $post->status) === 'draft' ? 'selected' : '' }}
+                            >
+                                Draft
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="d-flex gap-2">
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                        >
+                            Update Post
+                        </button>
+
+                        <a
+                            href="{{ route('posts.show', $post) }}"
+                            class="btn btn-secondary"
+                        >
+                            Cancel
+                        </a>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
     </div>
 
-    <button type="submit" class="btn btn-primary">Update Post</button>
-    <a href="{{ route('posts.show', $post) }}" class="btn btn-secondary">Cancel</a>
-</form>
+</div>
+
 @endsection
