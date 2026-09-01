@@ -8,20 +8,33 @@
 
     <h1>Posts</h1>
 
-    @auth
-        <a
-            href="{{ route('posts.create') }}"
-            class="btn btn-primary"
-        >
-            Create Post
-        </a>
-    @endauth
+    <div class="d-flex gap-2">
+
+        @auth
+
+            <a
+                href="{{ route('posts.create') }}"
+                class="btn btn-primary"
+            >
+                Create Post
+            </a>
+
+            <a
+                href="{{ route('posts.export', request()->query()) }}"
+                class="btn btn-success"
+            >
+                Export CSV
+            </a>
+
+        @endauth
+
+    </div>
 
 </div>
 
 
+{{-- Filters --}}
 
-{{-- Search and Filters --}}
 <div class="card mb-4">
 
     <div class="card-header">
@@ -36,7 +49,6 @@
             class="row g-3"
         >
 
-            {{-- Search --}}
             <div class="col-md-3">
 
                 <label class="form-label">
@@ -54,7 +66,6 @@
             </div>
 
 
-            {{-- From Date --}}
             <div class="col-md-2">
 
                 <label class="form-label">
@@ -71,7 +82,6 @@
             </div>
 
 
-            {{-- To Date --}}
             <div class="col-md-2">
 
                 <label class="form-label">
@@ -88,7 +98,6 @@
             </div>
 
 
-            {{-- User ID --}}
             <div class="col-md-2">
 
                 <label class="form-label">
@@ -99,7 +108,6 @@
                     type="number"
                     name="user_id"
                     class="form-control"
-                    placeholder="User ID"
                     value="{{ request('user_id') }}"
                     min="1"
                 >
@@ -107,7 +115,6 @@
             </div>
 
 
-            {{-- Sort --}}
             <div class="col-md-2">
 
                 <label class="form-label">
@@ -140,47 +147,82 @@
                         Least Commented
                     </option>
 
+                    <option
+                        value="most_liked"
+                        {{ request('sort') === 'most_liked' ? 'selected' : '' }}
+                    >
+                        Most Liked
+                    </option>
+
+                    <option
+                        value="most_viewed"
+                        {{ request('sort') === 'most_viewed' ? 'selected' : '' }}
+                    >
+                        Most Viewed
+                    </option>
+
                 </select>
 
             </div>
 
 
-            {{-- Filter Button --}}
-            <div class="col-md-1 d-flex align-items-end">
+            @auth
+
+                <div class="col-md-2">
+
+                    <label class="form-label">
+                        Status
+                    </label>
+
+                    <select
+                        name="status"
+                        class="form-select"
+                    >
+
+                        <option value="">
+                            All
+                        </option>
+
+                        <option
+                            value="published"
+                            {{ request('status') === 'published' ? 'selected' : '' }}
+                        >
+                            Published
+                        </option>
+
+                        <option
+                            value="draft"
+                            {{ request('status') === 'draft' ? 'selected' : '' }}
+                        >
+                            Draft
+                        </option>
+
+                    </select>
+
+                </div>
+
+            @endauth
+
+
+            <div class="col-12">
 
                 <button
                     type="submit"
-                    class="btn btn-secondary w-100"
+                    class="btn btn-secondary"
                 >
                     Filter
                 </button>
 
-            </div>
-
-        </form>
-
-
-        {{-- Clear Filters --}}
-        @if(
-            request('search') ||
-            request('from') ||
-            request('to') ||
-            request('user_id') ||
-            request('sort')
-        )
-
-            <div class="mt-3">
-
                 <a
                     href="{{ route('posts.index') }}"
-                    class="btn btn-outline-danger btn-sm"
+                    class="btn btn-outline-danger"
                 >
-                    Clear Filters
+                    Clear
                 </a>
 
             </div>
 
-        @endif
+        </form>
 
     </div>
 
@@ -188,15 +230,16 @@
 
 
 {{-- Posts --}}
+
 <div class="list-group">
 
     @forelse($posts as $post)
 
         <div class="list-group-item mb-3 border rounded">
 
-            <div class="d-flex w-100 justify-content-between">
+            <div class="d-flex justify-content-between">
 
-                <h5 class="mb-1">
+                <h5>
 
                     <a
                         href="{{ route('posts.show', $post) }}"
@@ -214,54 +257,49 @@
             </div>
 
 
-            <p class="mb-2 text-muted">
-
+            <p class="text-muted">
                 {{ Str::limit($post->body, 150) }}
-
             </p>
 
 
-            <div class="d-flex gap-2 flex-wrap align-items-center">
+            <div class="d-flex gap-2 flex-wrap">
 
-                {{-- Author --}}
                 <span class="badge bg-primary">
-
                     By {{ $post->user->name }}
-
                 </span>
 
 
-                {{-- Likes --}}
-                <span class="badge bg-success">
-
-                    {{ $post->likes->count() }} Likes
-
+                <span
+                    class="badge {{ $post->status === 'published' ? 'bg-success' : 'bg-warning text-dark' }}"
+                >
+                    {{ ucfirst($post->status) }}
                 </span>
 
 
-                {{-- Relationship Based Comment Count --}}
+                <span class="badge bg-danger">
+                    {{ $post->likes_count }} Likes
+                </span>
+
+
                 <span class="badge bg-info">
-
                     {{ $post->comments_count }} Comments
-
                 </span>
 
 
-                {{-- Top-Level Discussions --}}
                 <span class="badge bg-secondary">
-
-                   {{ $post->top_level_comments_count }} Discussions
-
+                    {{ $post->bookmarks_count }} Bookmarks
                 </span>
 
 
-                {{-- Image --}}
+                <span class="badge bg-dark">
+                    {{ $post->views_count }} Views
+                </span>
+
+
                 @if($post->image)
 
                     <span class="badge bg-warning text-dark">
-
                         Has Image
-
                     </span>
 
                 @endif
@@ -269,7 +307,6 @@
             </div>
 
 
-            {{-- Post Actions --}}
             @auth
 
                 @if(auth()->id() === $post->user_id)
@@ -283,19 +320,16 @@
                             Edit
                         </a>
 
-
                         <form
                             action="{{ route('posts.destroy', $post) }}"
                             method="POST"
-                            onsubmit="return confirm('Are you sure you want to delete this post?')"
+                            onsubmit="return confirm('Delete this post?')"
                         >
 
                             @csrf
-
                             @method('DELETE')
 
                             <button
-                                type="submit"
                                 class="btn btn-sm btn-danger"
                             >
                                 Delete
@@ -314,9 +348,7 @@
     @empty
 
         <div class="alert alert-info">
-
             No posts found.
-
         </div>
 
     @endforelse
@@ -324,10 +356,11 @@
 </div>
 
 
-{{-- Pagination --}}
+{{-- Numeric Pagination --}}
+
 <div class="mt-4">
 
-    {{ $posts->links() }}
+    {{ $posts->onEachSide(1)->links('pagination::bootstrap-5') }}
 
 </div>
 

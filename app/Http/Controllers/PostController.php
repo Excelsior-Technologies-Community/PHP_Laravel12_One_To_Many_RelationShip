@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PostController extends Controller
 {
@@ -18,22 +19,45 @@ class PostController extends Controller
 
     public function index(Request $request)
     {
+        $query = Post::query()
+            ->with([
+                'user',
+                'likes',
+            ])
+            ->withCount([
+                'comments',
+                'topLevelComments',
+                'likes',
+                'bookmarks',
+                'views',
+            ]);
+
         /*
         |--------------------------------------------------------------------------
-        | Load relationships and comment count
+        | Public users only see published posts
         |--------------------------------------------------------------------------
         */
 
-$query = Post::query()
-    ->with([
-        'user',
-        'likes',
-        'comments',
-    ])
-    ->withCount([
-        'comments',
-        'topLevelComments',
-    ]);
+        if (!Auth::check()) {
+            $query->published();
+        } else {
+            /*
+            | Logged-in users can see:
+            | - published posts
+            | - their own drafts
+            */
+
+            $query->where(function ($query) {
+                $query->where('status', 'published')
+                    ->orWhere(function ($query) {
+                        $query->where('status', 'draft')
+                            ->where(
+                                'user_id',
+                                Auth::id()
+                            );
+                    });
+            });
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -70,13 +94,27 @@ $query = Post::query()
 
         /*
         |--------------------------------------------------------------------------
+        | Status Filter
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            Auth::check() &&
+            in_array(
+                $request->input('status'),
+                ['published', 'draft']
+            )
+        ) {
+            $query->where(
+                'status',
+                $request->input('status')
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | Sorting
         |--------------------------------------------------------------------------
-        |
-        | latest
-        | most_commented
-        | least_commented
-        |
         */
 
         $sort = $request->input(
@@ -85,7 +123,6 @@ $query = Post::query()
         );
 
         switch ($sort) {
-
             case 'most_commented':
 
                 $query->orderBy(
@@ -104,6 +141,24 @@ $query = Post::query()
 
                 break;
 
+            case 'most_liked':
+
+                $query->orderBy(
+                    'likes_count',
+                    'desc'
+                );
+
+                break;
+
+            case 'most_viewed':
+
+                $query->orderBy(
+                    'views_count',
+                    'desc'
+                );
+
+                break;
+
             default:
 
                 $query->latest();
@@ -118,7 +173,7 @@ $query = Post::query()
         */
 
         $posts = $query
-            ->paginate(10)
+            ->paginate(5)
             ->withQueryString();
 
         return view(
@@ -129,7 +184,7 @@ $query = Post::query()
 
     /*
     |--------------------------------------------------------------------------
-    | Create Post Page
+    | Create
     |--------------------------------------------------------------------------
     */
 
@@ -140,39 +195,50 @@ $query = Post::query()
 
     /*
     |--------------------------------------------------------------------------
-    | Store Post
+    | Store
     |--------------------------------------------------------------------------
     */
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
 
-            'body' => 'required|string|min:10|max:5000',
+            'body' => [
+                'required',
+                'string',
+                'min:10',
+                'max:5000',
+            ],
 
-            'image' =>
-                'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'image' => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:2048',
+            ],
+
+            'status' => [
+                'required',
+                Rule::in([
+                    'draft',
+                    'published',
+                ]),
+            ],
         ]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Upload Image
-        |--------------------------------------------------------------------------
-        */
-
         if ($request->hasFile('image')) {
-
             $validated['image'] =
                 $request->file('image')
-                    ->store('posts', 'public');
+                    ->store(
+                        'posts',
+                        'public'
+                    );
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Assign Logged-In User
-        |--------------------------------------------------------------------------
-        */
 
         $validated['user_id'] = Auth::id();
 
@@ -188,7 +254,7 @@ $query = Post::query()
 
     /*
     |--------------------------------------------------------------------------
-    | Show Post
+    | Show
     |--------------------------------------------------------------------------
     */
 
@@ -196,13 +262,17 @@ $query = Post::query()
     {
         /*
         |--------------------------------------------------------------------------
-        | Load Post Relationships
+        | Draft protection
         |--------------------------------------------------------------------------
-        |
-        | Only top-level comments are loaded here.
-        | Their replies are then loaded underneath them.
-        |
         */
+
+        if (
+            $post->status === 'draft' &&
+            (!Auth::check() ||
+                Auth::id() !== $post->user_id)
+        ) {
+            abort(404);
+        }
 
         $post->load([
             'user',
@@ -211,13 +281,12 @@ $query = Post::query()
             'topLevelComments.replies.user',
         ]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Count All Comments + Replies
-        |--------------------------------------------------------------------------
-        */
-
-        $post->loadCount('comments');
+        $post->loadCount([
+            'comments',
+            'likes',
+            'bookmarks',
+            'views',
+        ]);
 
         return view(
             'posts.show',
@@ -227,7 +296,7 @@ $query = Post::query()
 
     /*
     |--------------------------------------------------------------------------
-    | Edit Post
+    | Edit
     |--------------------------------------------------------------------------
     */
 
@@ -246,7 +315,7 @@ $query = Post::query()
 
     /*
     |--------------------------------------------------------------------------
-    | Update Post
+    | Update
     |--------------------------------------------------------------------------
     */
 
@@ -268,30 +337,44 @@ $query = Post::query()
                     ->ignore($post->id),
             ],
 
-            'body' =>
-                'required|string|min:10|max:5000',
+            'body' => [
+                'required',
+                'string',
+                'min:10',
+                'max:5000',
+            ],
 
-            'image' =>
-                'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'image' => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:2048',
+            ],
+
+            'status' => [
+                'required',
+                Rule::in([
+                    'draft',
+                    'published',
+                ]),
+            ],
         ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Replace Image
-        |--------------------------------------------------------------------------
-        */
 
         if ($request->hasFile('image')) {
 
             if ($post->image) {
-
                 Storage::disk('public')
-                    ->delete($post->image);
+                    ->delete(
+                        $post->image
+                    );
             }
 
             $validated['image'] =
                 $request->file('image')
-                    ->store('posts', 'public');
+                    ->store(
+                        'posts',
+                        'public'
+                    );
         }
 
         $post->update($validated);
@@ -309,7 +392,7 @@ $query = Post::query()
 
     /*
     |--------------------------------------------------------------------------
-    | Delete Post
+    | Delete
     |--------------------------------------------------------------------------
     */
 
@@ -320,16 +403,11 @@ $query = Post::query()
             $post
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Delete Image
-        |--------------------------------------------------------------------------
-        */
-
         if ($post->image) {
-
             Storage::disk('public')
-                ->delete($post->image);
+                ->delete(
+                    $post->image
+                );
         }
 
         $post->delete();
@@ -340,5 +418,96 @@ $query = Post::query()
                 'success',
                 'Post deleted successfully.'
             );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CSV Export
+    |--------------------------------------------------------------------------
+    */
+
+    public function export(Request $request): StreamedResponse
+    {
+        $query = Post::query()
+            ->withCount([
+                'comments',
+                'likes',
+                'bookmarks',
+                'views',
+            ])
+            ->with('user');
+
+        if (!Auth::check()) {
+            $query->published();
+        } else {
+            $query->where(function ($query) {
+                $query->where(
+                    'status',
+                    'published'
+                )
+                ->orWhere(function ($query) {
+                    $query->where(
+                        'status',
+                        'draft'
+                    )
+                    ->where(
+                        'user_id',
+                        Auth::id()
+                    );
+                });
+            });
+        }
+
+        if ($search = $request->input('search')) {
+            $query->search($search);
+        }
+
+        $posts = $query
+            ->latest()
+            ->get();
+
+        return response()->streamDownload(
+            function () use ($posts) {
+
+                $handle = fopen(
+                    'php://output',
+                    'w'
+                );
+
+                fputcsv($handle, [
+                    'ID',
+                    'Post Name',
+                    'Author',
+                    'Status',
+                    'Comments',
+                    'Likes',
+                    'Bookmarks',
+                    'Views',
+                    'Created At',
+                ]);
+
+                foreach ($posts as $post) {
+
+                    fputcsv($handle, [
+                        $post->id,
+                        $post->name,
+                        $post->user->name ?? '',
+                        $post->status,
+                        $post->comments_count,
+                        $post->likes_count,
+                        $post->bookmarks_count,
+                        $post->views_count,
+                        $post->created_at,
+                    ]);
+                }
+
+                fclose($handle);
+            },
+            'posts-export.csv',
+            [
+                'Content-Type' =>
+                    'text/csv',
+            ]
+        );
     }
 }
